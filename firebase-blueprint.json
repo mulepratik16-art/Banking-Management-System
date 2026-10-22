@@ -1,0 +1,236 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Fictional student customer profile affiliated with an engineering college.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The authenticated Firebase User UID."
+        },
+        "fullName": {
+          "type": "string",
+          "description": "Full name of the student customer.",
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "description": "Customer email address."
+        },
+        "phone": {
+          "type": "string",
+          "description": "Customer mobile phone number.",
+          "maxLength": 20
+        },
+        "college": {
+          "type": "string",
+          "description": "College or university name.",
+          "maxLength": 150
+        },
+        "department": {
+          "type": "string",
+          "description": "Academic department.",
+          "maxLength": 100
+        },
+        "rollNo": {
+          "type": "string",
+          "description": "Student roll number.",
+          "maxLength": 50
+        },
+        "semester": {
+          "type": "string",
+          "description": "Academic semester.",
+          "maxLength": 50
+        },
+        "projectTitle": {
+          "type": "string",
+          "description": "Academic project title.",
+          "maxLength": 150
+        },
+        "branch": {
+          "type": "string",
+          "description": "Assigned bank branch.",
+          "maxLength": 100
+        },
+        "kycStatus": {
+          "type": "string",
+          "enum": ["Verified", "Pending Approval"]
+        },
+        "customerSince": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "fullName", "email", "rollNo", "kycStatus"]
+    },
+    "BankAccount": {
+      "title": "BankAccount",
+      "description": "Simulated bank account holding fictional Indian rupee balances in integer paise.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique account identifier."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The owner's Firebase UID."
+        },
+        "accountNumber": {
+          "type": "string",
+          "description": "Unique demo account number.",
+          "maxLength": 30
+        },
+        "accountType": {
+          "type": "string",
+          "enum": ["Savings", "Checking", "Fixed Deposit"]
+        },
+        "accountName": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "balancePaise": {
+          "type": "integer",
+          "description": "Account balance in integer paise (1 INR = 100 paise)."
+        },
+        "minBalancePaise": {
+          "type": "integer",
+          "description": "Minimum required balance in paise."
+        },
+        "interestRate": {
+          "type": "number",
+          "description": "Annual interest rate percentage."
+        },
+        "ifsc": {
+          "type": "string",
+          "maxLength": 15
+        },
+        "openingDate": {
+          "type": "string"
+        },
+        "isFrozen": {
+          "type": "boolean",
+          "description": "Whether the linked card/account is locked."
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "userId", "accountNumber", "accountType", "accountName", "balancePaise", "minBalancePaise"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Immutable ledger record of a simulated deposit, withdrawal, or transfer.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique transaction ID."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Firebase UID of the transaction initiator."
+        },
+        "accountId": {
+          "type": "string",
+          "description": "Account ID debited or credited."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["deposit", "withdrawal", "transfer_out", "transfer_in", "interest"]
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "amountPaise": {
+          "type": "integer",
+          "description": "Transaction amount in paise (must be > 0)."
+        },
+        "balanceAfterPaise": {
+          "type": "integer",
+          "description": "Account balance in paise immediately after transaction execution."
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "referenceNo": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "paymentMode": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "toAccount": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "recipientName": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Completed", "Pending", "Failed"]
+        },
+        "timestamp": {
+          "type": "string"
+        }
+      },
+      "required": ["id", "userId", "accountId", "type", "amountPaise", "balanceAfterPaise", "referenceNo", "status"]
+    },
+    "IdempotencyRecord": {
+      "title": "IdempotencyRecord",
+      "description": "Idempotency tracking to prevent duplicate financial transaction execution.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "userId": {
+          "type": "string"
+        },
+        "transactionId": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        }
+      },
+      "required": ["key", "userId", "transactionId"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private customer profile document accessible only by the authenticated owner."
+    },
+    "/accounts/{accountId}": {
+      "schema": { "$ref": "#/entities/BankAccount" },
+      "description": "Customer bank accounts with balances in integer paise."
+    },
+    "/transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/Transaction" },
+      "description": "Immutable ledger transactions for auditing."
+    },
+    "/idempotency/{idempotencyKey}": {
+      "schema": { "$ref": "#/entities/IdempotencyRecord" },
+      "description": "Dedup records for transactions."
+    }
+  }
+}

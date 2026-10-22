@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default-deny all unmapped operations
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Diagnostic connection test endpoint
+    match /test/{docId} {
+      allow get: if true;
+    }
+
+    // 1. Customer User Profiles (/users/{userId})
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+      allow create: if isSignedIn() && isValidId(userId) && request.auth.uid == userId
+        && incoming().id == userId
+        && incoming().fullName is string && incoming().fullName.size() <= 100
+        && incoming().email is string && incoming().email.size() <= 120
+        && incoming().rollNo is string && incoming().rollNo.size() <= 50
+        && incoming().kycStatus in ['Verified', 'Pending Approval']
+        && incoming().keys().hasAll(['id', 'fullName', 'email', 'rollNo', 'kycStatus']);
+
+      allow update: if isSignedIn() && isValidId(userId) && request.auth.uid == userId
+        && incoming().id == existing().id
+        && incoming().kycStatus == existing().kycStatus
+        && incoming().diff(existing()).affectedKeys().hasOnly(['phone', 'address', 'fullName', 'updatedAt']);
+
+      allow delete: if false;
+    }
+
+    // 2. Bank Accounts (/accounts/{accountId})
+    match /accounts/{accountId} {
+      allow get: if isSignedIn() && isValidId(accountId) && existing().userId == request.auth.uid;
+
+      // Query Enforcer: rule mandates that client query by authenticated userId
+      allow list: if isSignedIn() && existing().userId == request.auth.uid;
+
+      allow create: if isSignedIn() && isValidId(accountId)
+        && incoming().userId == request.auth.uid
+        && incoming().accountNumber is string && incoming().accountNumber.size() <= 30
+        && incoming().accountType in ['Savings', 'Checking', 'Fixed Deposit']
+        && incoming().accountName is string && incoming().accountName.size() <= 80
+        && incoming().balancePaise is int && incoming().balancePaise >= 0
+        && incoming().minBalancePaise is int && incoming().minBalancePaise >= 0
+        && incoming().balancePaise >= incoming().minBalancePaise
+        && incoming().keys().hasAll(['id', 'userId', 'accountNumber', 'accountType', 'accountName', 'balancePaise', 'minBalancePaise']);
+
+      allow update: if isSignedIn() && isValidId(accountId)
+        && existing().userId == request.auth.uid
+        && incoming().userId == existing().userId
+        && incoming().accountNumber == existing().accountNumber
+        && incoming().accountType == existing().accountType
+        && (
+          // Action 1: Card Lock/Unlock toggle
+          incoming().diff(existing()).affectedKeys().hasOnly(['isFrozen', 'updatedAt']) ||
+          // Action 2: Atomic Balance update via verified transaction
+          (
+            incoming().balancePaise is int
+            && incoming().balancePaise >= existing().minBalancePaise
+            && incoming().diff(existing()).affectedKeys().hasOnly(['balancePaise', 'updatedAt'])
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    // 3. Transactions Audit Ledger (/transactions/{transactionId})
+    match /transactions/{transactionId} {
+      allow get: if isSignedIn() && isValidId(transactionId) && existing().userId == request.auth.uid;
+
+      // Query Enforcer: list must check user ownership
+      allow list: if isSignedIn() && existing().userId == request.auth.uid;
+
+      allow create: if isSignedIn() && isValidId(transactionId)
+        && incoming().userId == request.auth.uid
+        && incoming().accountId is string && incoming().accountId.size() <= 128
+        && incoming().type in ['deposit', 'withdrawal', 'transfer_out', 'transfer_in', 'interest']
+        && incoming().amountPaise is int && incoming().amountPaise > 0
+        && incoming().balanceAfterPaise is int && incoming().balanceAfterPaise >= 0
+        && incoming().referenceNo is string && incoming().referenceNo.size() <= 60
+        && incoming().status in ['Completed', 'Pending', 'Failed']
+        && incoming().keys().hasAll(['id', 'userId', 'accountId', 'type', 'amountPaise', 'balanceAfterPaise', 'referenceNo', 'status']);
+
+      // Immutable financial audit ledger: no updates or deletes permitted
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // 4. Idempotency Tracking (/idempotency/{idempotencyKey})
+    match /idempotency/{idempotencyKey} {
+      allow get: if isSignedIn() && isValidId(idempotencyKey) && existing().userId == request.auth.uid;
+      allow create: if isSignedIn() && isValidId(idempotencyKey)
+        && incoming().userId == request.auth.uid
+        && incoming().keys().hasAll(['key', 'userId', 'transactionId']);
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}

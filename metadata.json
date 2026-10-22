@@ -1,0 +1,7 @@
+{
+  "name": "Apex Bank — Banking Management System",
+  "description": "A modern, responsive Banking Management System designed for First Year Engineering college projects featuring accounts, deposits, withdrawals, transfers, and interactive analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
