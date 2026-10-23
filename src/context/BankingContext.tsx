@@ -150,6 +150,15 @@ export function parseFirebaseAuthError(err: any): AuthErrorInfo {
     };
   }
 
+  if (code === 'auth/unauthorized-domain') {
+    return {
+      code,
+      isAdminRestricted: true,
+      message:
+        'Firebase error (auth/unauthorized-domain): This domain is not authorized in Firebase Authentication. When deploying to GitHub Pages, add your domain (e.g. your-username.github.io) in Firebase Console > Authentication > Settings > Authorized domains.',
+    };
+  }
+
   return {
     code,
     isAdminRestricted: false,
